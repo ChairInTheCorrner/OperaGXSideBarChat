@@ -1,144 +1,1210 @@
 <!doctype html>
 <html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#140b1d">
-<title>GX Twitch Chat</title>
-<style>
-:root{color-scheme:dark;--bg:#140b1d;--panel:#21132d;--panel2:#2b1a3b;--purple:#9147ff;--text:#f8f4ff;--muted:#b7a4c9;--line:#49305e;--green:#59e3a1;--red:#ff6b88}
-*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--text);font:13px/1.4 system-ui,-apple-system,Segoe UI,sans-serif}
-body{display:flex;flex-direction:column;padding:9px;gap:8px}.top{display:flex;align-items:center;gap:8px;min-width:0}.brand{font-size:15px;font-weight:900;letter-spacing:1.5px;color:#d9baff;white-space:nowrap}.pill{font-size:10px;padding:3px 7px;border-radius:20px;background:var(--panel2);color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.spacer{flex:1}.smallbtn{background:transparent;border:1px solid var(--line);color:var(--muted);border-radius:7px;padding:5px 7px;cursor:pointer}.smallbtn:hover{border-color:var(--purple);color:white}
-#chatWrap{display:flex;flex:1;min-height:0;flex-direction:column;background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden}#chatHeader{padding:9px 10px;background:#1a1024;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:7px;min-width:0}#channelName{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}#liveDot{width:7px;height:7px;border-radius:50%;background:#686070;flex:none}#liveDot.on{background:var(--green);box-shadow:0 0 8px #59e3a177}
-#messages{flex:1;min-height:0;overflow-y:auto;padding:9px 8px;overflow-wrap:anywhere;scrollbar-color:#644080 transparent;scrollbar-width:thin}#welcome{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:var(--muted);padding:20px;gap:8px}#welcome .heart{font-size:32px;color:var(--purple)}.msg{margin:0 0 7px;line-height:1.45}.time{color:#887499;font-size:10px;margin-right:4px}.name{font-weight:750}.body{color:#f4edf9;white-space:pre-wrap;word-break:break-word}.system{color:#bfa7d7;font-size:11px;margin:5px 0 8px;white-space:pre-wrap;overflow-wrap:anywhere}
-.composer{display:flex;gap:6px;padding:8px;border-top:1px solid var(--line);background:#1a1024}.composer input{min-width:0;flex:1;background:#2a1a37;border:1px solid #4d3560;color:white;border-radius:8px;padding:9px;outline:none}.composer input:focus,.field:focus{border-color:var(--purple)}button.primary{background:var(--purple);border:0;color:white;font-weight:750;border-radius:8px;padding:0 12px;cursor:pointer}button.primary:hover{filter:brightness(1.12)}button:disabled{opacity:.45;cursor:not-allowed}
-#bottom{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}button.tile{min-width:0;aspect-ratio:1/1;max-height:88px;border:1px solid var(--line);border-radius:11px;background:var(--panel);color:white;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;cursor:pointer;font:inherit;font-size:10px;text-align:center;padding:5px}button.tile .ico{font-size:22px;line-height:1}button.tile:hover,button.tile.active{border-color:var(--purple);background:#2b1a3b}button.tile.active .ico{color:#c9a4ff}
-#status{font-size:10px;color:var(--muted);text-align:center;min-height:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.overlay{position:fixed;inset:0;background:#08040dcc;display:none;align-items:center;justify-content:center;padding:12px;z-index:5}.overlay.show{display:flex}.modal{width:100%;max-width:360px;max-height:90%;overflow:auto;background:#21132d;border:1px solid var(--line);border-radius:13px;padding:14px;box-shadow:0 15px 60px #0008}.modal h2{font-size:16px;margin:0 0 6px}.muted{color:var(--muted);font-size:11px;margin:0 0 12px}.field{width:100%;background:#120b19;border:1px solid var(--line);color:white;border-radius:8px;padding:10px;outline:none;margin:5px 0 9px}.row{display:flex;gap:7px}.row>*{flex:1;min-width:0}.modal button{min-height:34px}.results{display:flex;flex-direction:column;gap:5px;margin-top:8px}.result{display:flex;justify-content:space-between;align-items:center;gap:8px;background:#2b1a3b;border:1px solid transparent;border-radius:8px;padding:8px;text-align:left;color:white;cursor:pointer}.result:hover{border-color:var(--purple)}.result small{color:var(--muted);display:block}.error{color:#ff91a7;font-size:11px;white-space:pre-wrap;margin:7px 0}.notice{font-size:10px;color:var(--muted);margin-top:9px}
-#callbackScreen{display:none;position:fixed;inset:0;z-index:20;background:var(--bg);align-items:center;justify-content:center;text-align:center;padding:24px}#callbackScreen.show{display:flex}#callbackScreen .card{max-width:340px;border:1px solid var(--line);background:var(--panel);border-radius:14px;padding:24px}
-</style>
-</head>
-<body>
-<div class="top"><div class="brand">GX CHAT</div><span class="pill" id="accountPill">Not logged in</span><div class="spacer"></div><button class="smallbtn" id="settingsBtn" title="Settings">⚙</button></div>
-<section id="chatWrap"><div id="chatHeader"><span id="liveDot"></span><span id="channelName">No streamer selected</span><div class="spacer"></div><span class="pill" id="chatState">Idle</span></div><div id="messages"><div id="welcome"><div class="heart">♥</div><strong>Your Twitch chat, in GX</strong><span>Log in, choose a streamer, and chat here.</span></div></div><form class="composer" id="sendForm"><input id="messageInput" maxlength="500" placeholder="Log in and choose a streamer…" autocomplete="off" disabled><button class="primary" id="sendBtn" disabled>Send</button></form></section>
-<div id="status">Ready · Twitch app credentials required</div>
-<nav id="bottom"><button class="tile" id="loginBtn"><span class="ico">◉</span><span id="loginLabel">Twitch Login</span></button><button class="tile" id="pickBtn"><span class="ico">▣</span><span>Pick Streamer</span></button><button class="tile" id="notifyBtn"><span class="ico">♧</span><span id="notifyLabel">Notifications OFF</span></button></nav>
-<div class="overlay" id="settingsOverlay"><div class="modal"><h2>Connection settings</h2><p class="muted">Enter your Twitch app Client ID. It is public; never put a Client Secret in this page.</p><label for="clientId">Twitch Client ID</label><input class="field" id="clientId" placeholder="Your Twitch Client ID" autocomplete="off"><p class="muted">Register this exact redirect URL in Twitch Developer Console:<br><b id="redirectText"></b><br>Scopes: chat:read, chat:edit</p><div class="row"><button class="primary" id="saveSettings">Save</button><button class="smallbtn" id="closeSettings">Close</button></div><div class="error" id="settingsError"></div><div class="notice">Use your deployed HTTPS GitHub Pages URL. The OAuth redirect must match it exactly.</div><hr style="border-color:var(--line);margin:13px 0"><button class="smallbtn" id="logoutBtn" style="width:100%">Log out / clear session</button></div></div>
-<div class="overlay" id="pickerOverlay"><div class="modal"><h2>Pick a streamer</h2><p class="muted">Search Twitch channels, then select one to load its chat.</p><form id="searchForm" class="row"><input class="field" id="searchInput" placeholder="Streamer name" autocomplete="off" style="margin-top:0"><button class="primary">Search</button></form><div id="searchError" class="error"></div><div id="results" class="results"></div><button class="smallbtn" id="closePicker" style="width:100%;margin-top:10px">Close</button></div></div>
-<div id="callbackScreen"><div class="card"><div style="font-size:30px;color:#b995ff">♥</div><h2 id="callbackTitle">Completing Twitch login…</h2><p id="callbackMessage" class="muted">You can return to your Opera GX sidebar when this is done.</p></div></div>
-<script>
-(()=>{'use strict';
-const $=id=>document.getElementById(id);
-const REDIRECT=location.origin+location.pathname;
-$('redirectText').textContent=REDIRECT;
-const params=new URLSearchParams(location.search);
-const isOAuthCallback=location.hash.includes('access_token=')||location.hash.includes('error=')||params.has('error');
-const callbackScreen=$('callbackScreen');
-const clientIdKey='gx_twitch_client_id';
-const handoffKey='gx_twitch_oauth_handoff';
-const stateKey='gx_twitch_oauth_state';
-let clientId=localStorage.getItem(clientIdKey)||'';
-let token=sessionStorage.getItem('gx_twitch_token')||'';
-let user=null,streamer=null,ws=null,notifications=localStorage.getItem('gx_twitch_notifications')==='true',reconnectTimer=null,manualClose=false;
-$('clientId').value=clientId;
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="theme-color" content="#140b1d" />
+    <title>GX Twitch Chat</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #140b1d;
+        --panel: #21132d;
+        --panel2: #2b1a3b;
+        --purple: #9147ff;
+        --text: #f8f4ff;
+        --muted: #b7a4c9;
+        --line: #49305e;
+        --green: #59e3a1;
+        --red: #ff6b88;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: var(--bg);
+        color: var(--text);
+        font:
+          13px/1.4 system-ui,
+          -apple-system,
+          Segoe UI,
+          sans-serif;
+      }
+      body {
+        display: flex;
+        flex-direction: column;
+        padding: 9px;
+        gap: 8px;
+      }
+      .top {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+      }
+      .brand {
+        font-size: 15px;
+        font-weight: 900;
+        letter-spacing: 1.5px;
+        color: #d9baff;
+        white-space: nowrap;
+      }
+      .pill {
+        font-size: 10px;
+        padding: 3px 7px;
+        border-radius: 20px;
+        background: var(--panel2);
+        color: var(--muted);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .spacer {
+        flex: 1;
+      }
+      .smallbtn {
+        background: transparent;
+        border: 1px solid var(--line);
+        color: var(--muted);
+        border-radius: 7px;
+        padding: 5px 7px;
+        cursor: pointer;
+      }
+      .smallbtn:hover {
+        border-color: var(--purple);
+        color: white;
+      }
+      #chatWrap {
+        display: flex;
+        flex: 1;
+        min-height: 0;
+        flex-direction: column;
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        overflow: hidden;
+      }
+      #chatHeader {
+        padding: 9px 10px;
+        background: #1a1024;
+        border-bottom: 1px solid var(--line);
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        min-width: 0;
+      }
+      #channelName {
+        font-weight: 700;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      #liveDot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: #686070;
+        flex: none;
+      }
+      #liveDot.on {
+        background: var(--green);
+        box-shadow: 0 0 8px #59e3a177;
+      }
+      #messages {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        padding: 9px 8px;
+        overflow-wrap: anywhere;
+        scrollbar-color: #644080 transparent;
+        scrollbar-width: thin;
+      }
+      #welcome {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        color: var(--muted);
+        padding: 20px;
+        gap: 8px;
+      }
+      #welcome .heart {
+        font-size: 32px;
+        color: var(--purple);
+      }
+      .msg {
+        margin: 0 0 7px;
+        line-height: 1.45;
+      }
+      .time {
+        color: #887499;
+        font-size: 10px;
+        margin-right: 4px;
+      }
+      .name {
+        font-weight: 750;
+      }
+      .body {
+        color: #f4edf9;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      .system {
+        color: #bfa7d7;
+        font-size: 11px;
+        margin: 5px 0 8px;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+      }
+      .composer {
+        display: flex;
+        gap: 6px;
+        padding: 8px;
+        border-top: 1px solid var(--line);
+        background: #1a1024;
+      }
+      .composer input {
+        min-width: 0;
+        flex: 1;
+        background: #2a1a37;
+        border: 1px solid #4d3560;
+        color: white;
+        border-radius: 8px;
+        padding: 9px;
+        outline: none;
+      }
+      .composer input:focus,
+      .field:focus {
+        border-color: var(--purple);
+      }
+      button.primary {
+        background: var(--purple);
+        border: 0;
+        color: white;
+        font-weight: 750;
+        border-radius: 8px;
+        padding: 0 12px;
+        cursor: pointer;
+      }
+      button.primary:hover {
+        filter: brightness(1.12);
+      }
+      button:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+      #bottom {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 7px;
+      }
+      button.tile {
+        min-width: 0;
+        aspect-ratio: 1/1;
+        max-height: 88px;
+        border: 1px solid var(--line);
+        border-radius: 11px;
+        background: var(--panel);
+        color: white;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+        cursor: pointer;
+        font: inherit;
+        font-size: 10px;
+        text-align: center;
+        padding: 5px;
+      }
+      button.tile .ico {
+        font-size: 22px;
+        line-height: 1;
+      }
+      button.tile:hover,
+      button.tile.active {
+        border-color: var(--purple);
+        background: #2b1a3b;
+      }
+      button.tile.active .ico {
+        color: #c9a4ff;
+      }
+      #status {
+        font-size: 10px;
+        color: var(--muted);
+        text-align: center;
+        min-height: 12px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .overlay {
+        position: fixed;
+        inset: 0;
+        background: #08040dcc;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 12px;
+        z-index: 5;
+      }
+      .overlay.show {
+        display: flex;
+      }
+      .modal {
+        width: 100%;
+        max-width: 360px;
+        max-height: 90%;
+        overflow: auto;
+        background: #21132d;
+        border: 1px solid var(--line);
+        border-radius: 13px;
+        padding: 14px;
+        box-shadow: 0 15px 60px #0008;
+      }
+      .modal h2 {
+        font-size: 16px;
+        margin: 0 0 6px;
+      }
+      .muted {
+        color: var(--muted);
+        font-size: 11px;
+        margin: 0 0 12px;
+      }
+      .field {
+        width: 100%;
+        background: #120b19;
+        border: 1px solid var(--line);
+        color: white;
+        border-radius: 8px;
+        padding: 10px;
+        outline: none;
+        margin: 5px 0 9px;
+      }
+      .row {
+        display: flex;
+        gap: 7px;
+      }
+      .row > * {
+        flex: 1;
+        min-width: 0;
+      }
+      .modal button {
+        min-height: 34px;
+      }
+      .results {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        margin-top: 8px;
+      }
+      .result {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+        background: #2b1a3b;
+        border: 1px solid transparent;
+        border-radius: 8px;
+        padding: 8px;
+        text-align: left;
+        color: white;
+        cursor: pointer;
+      }
+      .result:hover {
+        border-color: var(--purple);
+      }
+      .result small {
+        color: var(--muted);
+        display: block;
+      }
+      .error {
+        color: #ff91a7;
+        font-size: 11px;
+        white-space: pre-wrap;
+        margin: 7px 0;
+      }
+      .notice {
+        font-size: 10px;
+        color: var(--muted);
+        margin-top: 9px;
+      }
+      #callbackScreen {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 20;
+        background: var(--bg);
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 24px;
+      }
+      #callbackScreen.show {
+        display: flex;
+      }
+      #callbackScreen .card {
+        max-width: 340px;
+        border: 1px solid var(--line);
+        background: var(--panel);
+        border-radius: 14px;
+        padding: 24px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="top">
+      <div class="brand">GX CHAT</div>
+      <span class="pill" id="accountPill">Not logged in</span>
+      <div class="spacer"></div>
+      <button class="smallbtn" id="settingsBtn" title="Settings">⚙</button>
+    </div>
+    <section id="chatWrap">
+      <div id="chatHeader">
+        <span id="liveDot"></span
+        ><span id="channelName">No streamer selected</span>
+        <div class="spacer"></div>
+        <span class="pill" id="chatState">Idle</span>
+      </div>
+      <div id="messages">
+        <div id="welcome">
+          <div class="heart">♥</div>
+          <strong>Your Twitch chat, in GX</strong
+          ><span>Log in, choose a streamer, and chat here.</span>
+        </div>
+      </div>
+      <form class="composer" id="sendForm">
+        <input
+          id="messageInput"
+          maxlength="500"
+          placeholder="Log in and choose a streamer…"
+          autocomplete="off"
+          disabled
+        /><button class="primary" id="sendBtn" disabled>Send</button>
+      </form>
+    </section>
+    <div id="status">Ready · Twitch app credentials required</div>
+    <nav id="bottom">
+      <button class="tile" id="loginBtn">
+        <span class="ico">◉</span
+        ><span id="loginLabel">Twitch Login</span></button
+      ><button class="tile" id="pickBtn">
+        <span class="ico">▣</span><span>Pick Streamer</span></button
+      ><button class="tile" id="notifyBtn">
+        <span class="ico">♧</span
+        ><span id="notifyLabel">Notifications OFF</span>
+      </button>
+    </nav>
+    <div class="overlay" id="settingsOverlay">
+      <div class="modal">
+        <h2>Connection settings</h2>
+        <p class="muted">
+          Enter your Twitch app Client ID. It is public; never put a Client
+          Secret in this page.
+        </p>
+        <label for="clientId">Twitch Client ID</label
+        ><input
+          class="field"
+          id="clientId"
+          placeholder="Your Twitch Client ID"
+          autocomplete="off"
+        />
+        <p class="muted">
+          Register this exact redirect URL in Twitch Developer Console:<br /><b
+            id="redirectText"
+          ></b
+          ><br />Scopes: chat:read, chat:edit
+        </p>
+        <div class="row">
+          <button class="primary" id="saveSettings">Save</button
+          ><button class="smallbtn" id="closeSettings">Close</button>
+        </div>
+        <div class="error" id="settingsError"></div>
+        <div class="notice">
+          Use your deployed HTTPS GitHub Pages URL. The OAuth redirect must
+          match it exactly.
+        </div>
+        <hr style="border-color: var(--line); margin: 13px 0" />
+        <button class="smallbtn" id="logoutBtn" style="width: 100%">
+          Log out / clear session
+        </button>
+      </div>
+    </div>
+    <div class="overlay" id="pickerOverlay">
+      <div class="modal">
+        <h2>Pick a streamer</h2>
+        <p class="muted">
+          Search Twitch channels, then select one to load its chat.
+        </p>
+        <form id="searchForm" class="row">
+          <input
+            class="field"
+            id="searchInput"
+            placeholder="Streamer name"
+            autocomplete="off"
+            style="margin-top: 0"
+          /><button class="primary">Search</button>
+        </form>
+        <div id="searchError" class="error"></div>
+        <div id="results" class="results"></div>
+        <button
+          class="smallbtn"
+          id="closePicker"
+          style="width: 100%; margin-top: 10px"
+        >
+          Close
+        </button>
+      </div>
+    </div>
+    <div id="callbackScreen">
+      <div class="card">
+        <div style="font-size: 30px; color: #b995ff">♥</div>
+        <h2 id="callbackTitle">Completing Twitch login…</h2>
+        <p id="callbackMessage" class="muted">
+          You can return to your Opera GX sidebar when this is done.
+        </p>
+      </div>
+    </div>
+    <script>
+      (() => {
+        "use strict";
+        const $ = (id) => document.getElementById(id);
+        const REDIRECT = location.origin + location.pathname;
+        $("redirectText").textContent = REDIRECT;
+        const params = new URLSearchParams(location.search);
+        const isOAuthCallback =
+          location.hash.includes("access_token=") ||
+          location.hash.includes("error=") ||
+          params.has("error");
+        const callbackScreen = $("callbackScreen");
+        const clientIdKey = "gx_twitch_client_id";
+        const handoffKey = "gx_twitch_oauth_handoff";
+        const stateKey = "gx_twitch_oauth_state";
+        let clientId = localStorage.getItem(clientIdKey) || "";
+        let token = sessionStorage.getItem("gx_twitch_token") || "";
+        let user = null,
+          streamer = null,
+          ws = null,
+          notifications =
+            localStorage.getItem("gx_twitch_notifications") === "true",
+          reconnectTimer = null,
+          manualClose = false;
+        $("clientId").value = clientId;
 
-function status(s){$('status').textContent=s}
-function sys(s){if($('welcome'))$('welcome').remove();const el=document.createElement('div');el.className='system';el.textContent=s;$('messages').appendChild(el);$('messages').scrollTop=$('messages').scrollHeight}
-function clearMessages(){$('messages').replaceChildren()}
-function welcome(){const w=document.createElement('div');w.id='welcome';w.innerHTML='<div class="heart">♥</div><strong>Your Twitch chat, in GX</strong><span>Log in, choose a streamer, and chat here.</span>';$('messages').appendChild(w)}
-function renderAccount(){$('accountPill').textContent=user?'@'+user.login:'Not logged in';$('loginLabel').textContent=user?'Log Out':'Twitch Login';$('loginBtn').classList.toggle('active',!!user);updateComposer()}
-function updateComposer(){const enabled=!!(user&&streamer&&ws&&ws.readyState===WebSocket.OPEN);$('messageInput').disabled=!enabled;$('sendBtn').disabled=!enabled;$('messageInput').placeholder=enabled?'Send a message as '+user.login+'…':(!user?'Log in to Twitch first…':!streamer?'Pick a streamer first…':'Connecting to chat…')}
-async function api(path){if(!clientId||!token)throw Error('Set your Client ID and log in first.');const r=await fetch('https://api.twitch.tv/helix/'+path,{headers:{'Client-ID':clientId,'Authorization':'Bearer '+token}});const d=await r.json().catch(()=>({}));if(!r.ok)throw Error(d.message||('Twitch API error '+r.status));return d}
-async function validateToken(){const r=await fetch('https://id.twitch.tv/oauth2/validate',{headers:{Authorization:'OAuth '+token}});if(!r.ok)throw Error('Twitch login expired or invalid. Please log in again.');const d=await r.json();if(d.client_id!==clientId)throw Error('This token belongs to a different Client ID. Log out and log in again.');const scopes=d.scopes||[];if(!scopes.includes('chat:read')||!scopes.includes('chat:edit'))throw Error('Missing chat:read or chat:edit. Log out and sign in again to grant both scopes.');return d}
-async function loadUser(){await validateToken();const d=await api('users');if(!d.data||!d.data.length)throw Error('Could not retrieve your Twitch account.');user=d.data[0];renderAccount();status('Logged in as '+user.display_name)}
-function openSettings(){$('clientId').value=clientId;$('settingsError').textContent='';$('settingsOverlay').classList.add('show')}
-function makeState(){const bytes=crypto.getRandomValues(new Uint8Array(24));return Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('')}
-function startLogin(){
- if(!clientId){openSettings();$('settingsError').textContent='Enter and save your Twitch Client ID first.';return}
- if(location.protocol!=='https:'&&location.hostname!=='localhost'&&location.hostname!=='127.0.0.1'){alert('Open this app from its HTTPS GitHub Pages URL, not a local file or HTTP URL.');return}
- let state;try{state=makeState()}catch(e){status('Secure random generation unavailable. Open the HTTPS GitHub Pages site.');return}
- localStorage.setItem(stateKey,state);
- const u=new URL('https://id.twitch.tv/oauth2/authorize');
- u.searchParams.set('client_id',clientId);u.searchParams.set('redirect_uri',REDIRECT);u.searchParams.set('response_type','token');u.searchParams.set('scope','chat:read chat:edit');u.searchParams.set('state',state);
- // Must be opened by a direct click so the browser does not block the new tab.
- const tab=window.open(u.toString(),'_blank');
- if(!tab){status('Pop-up blocked. Allow pop-ups for this GitHub Pages site and try again.');return}
- status('Twitch login opened in a new tab. Complete login there, then return here.');
-}
-function callbackPage(title,message){callbackScreen.classList.add('show');$('callbackTitle').textContent=title;$('callbackMessage').textContent=message}
-function processOAuthCallback(){
- const hash=new URLSearchParams(location.hash.startsWith('#')?location.hash.slice(1):'');
- const queryError=params.get('error');
- if(queryError||hash.has('error')){
-  const msg=params.get('error_description')||hash.get('error_description')||queryError||hash.get('error');
-  history.replaceState(null,'',REDIRECT);callbackPage('Twitch login failed',msg||'Please return to the sidebar and try again.');return;
- }
- if(!hash.has('access_token'))return;
- const returned=hash.get('state');
- const accessToken=hash.get('access_token');
- // Remove the token from the visible address bar immediately.
- history.replaceState(null,'',REDIRECT);
- if(!returned||!accessToken){callbackPage('Login could not be verified','Twitch did not return the expected login details. Return to the sidebar and try again.');return}
- // The callback tab may have a different storage partition from the sidebar iframe.
- // Send the result to the opener; the sidebar validates state and the token itself.
- const payload={type:'gx-twitch-oauth',token:accessToken,state:returned,time:Date.now()};
- let sent=false;
- try{if(window.opener&&!window.opener.closed){window.opener.postMessage(payload,location.origin);sent=true}}catch{}
- // Fallback for browsers where same-origin localStorage is shared between contexts.
- try{localStorage.setItem(handoffKey,JSON.stringify(payload))}catch{}
- callbackPage('Twitch login complete',sent?'Login result sent. Return to your Opera GX sidebar.':'Return to your Opera GX sidebar. If it does not log in automatically, allow pop-ups and try again.');
-}
-let acceptingHandoff=false;
-async function acceptHandoff(data){
- if(typeof data==='string'){try{data=JSON.parse(data)}catch{return}}
- if(acceptingHandoff)return;
- if(!data||!data.token||!data.state||data.state!==localStorage.getItem(stateKey)||!Number.isFinite(data.time)||Date.now()-data.time>120000||Date.now()<data.time){
-  status('Login handoff could not be verified. Click Twitch Login and try again.');return;
- }
- acceptingHandoff=true;
- try{localStorage.removeItem(handoffKey);localStorage.removeItem(stateKey)}catch{}
- token=data.token;sessionStorage.setItem('gx_twitch_token',token);
- try{await loadUser();sys('Signed in as '+user.display_name+'. Choose a streamer to join chat.');status('Logged in as '+user.display_name)}
- catch(e){token='';user=null;sessionStorage.removeItem('gx_twitch_token');renderAccount();status('Login failed: '+e.message)}
- finally{acceptingHandoff=false}
-}
-if(isOAuthCallback){processOAuthCallback();return}
-window.addEventListener('message',e=>{if(e.origin!==location.origin||!e.data||e.data.type!=='gx-twitch-oauth')return;acceptHandoff(e.data)});
-window.addEventListener('storage',e=>{if(e.key===handoffKey&&e.newValue)acceptHandoff(e.newValue)});
-// Some browsers delay storage events; check for a pending handoff when the page resumes.
-window.addEventListener('focus',()=>{try{const pending=localStorage.getItem(handoffKey);if(pending)acceptHandoff(pending)}catch{}});
-$('settingsBtn').onclick=openSettings;$('closeSettings').onclick=()=>$('settingsOverlay').classList.remove('show');
-$('saveSettings').onclick=()=>{const v=$('clientId').value.trim();if(!/^[a-zA-Z0-9]+$/.test(v)){$('settingsError').textContent='Enter the Client ID shown in your Twitch Developer Console.';return}if(v!==clientId){disconnectChat();token='';user=null;sessionStorage.removeItem('gx_twitch_token');localStorage.removeItem(handoffKey);localStorage.removeItem(stateKey)}clientId=v;localStorage.setItem(clientIdKey,v);$('settingsOverlay').classList.remove('show');renderAccount();status('Client ID saved. Click Twitch Login to authorize.')};
-$('logoutBtn').onclick=()=>{disconnectChat();token='';user=null;streamer=null;sessionStorage.removeItem('gx_twitch_token');localStorage.removeItem('gx_twitch_streamer');localStorage.removeItem(handoffKey);localStorage.removeItem(stateKey);renderAccount();$('channelName').textContent='No streamer selected';$('liveDot').classList.remove('on');$('chatState').textContent='Idle';clearMessages();welcome();$('settingsOverlay').classList.remove('show');status('Logged out.')};
-$('loginBtn').onclick=()=>{if(user&&token){if(confirm('Log out of Twitch?'))$('logoutBtn').click()}else startLogin()};
-$('pickBtn').onclick=()=>{if(!user){status('Log in to Twitch before searching for streamers.');openSettings();return}$('pickerOverlay').classList.add('show');$('searchInput').focus()};
-$('closePicker').onclick=()=>$('pickerOverlay').classList.remove('show');
-$('searchForm').onsubmit=async e=>{e.preventDefault();const q=$('searchInput').value.trim();if(!q)return;$('results').replaceChildren();$('searchError').textContent='Searching…';try{const d=await api('search/channels?query='+encodeURIComponent(q)+'&first=20');$('searchError').textContent=d.data.length?d.data.length+' result(s)':'No channels found.';for(const c of d.data){const b=document.createElement('button');b.type='button';b.className='result';const left=document.createElement('span'),bold=document.createElement('b'),small=document.createElement('small'),right=document.createElement('span');bold.textContent=c.display_name;small.textContent='@'+c.broadcaster_login+' · '+(c.game_name||'No category');left.append(bold,small);right.textContent=c.is_live?'🔴 LIVE':'Select →';b.append(left,right);b.onclick=()=>selectStreamer(c.broadcaster_login,c.display_name);$('results').appendChild(b)}}catch(err){$('searchError').textContent=err.message}};
-function selectStreamer(login,display){streamer={login:login.toLowerCase(),display};localStorage.setItem('gx_twitch_streamer',JSON.stringify(streamer));$('pickerOverlay').classList.remove('show');$('channelName').textContent=display+' · #'+streamer.login;$('liveDot').classList.remove('on');$('chatState').textContent='Connecting';clearMessages();sys('Connecting to #'+streamer.login+'…');connectChat()}
-function disconnectChat(){manualClose=true;if(reconnectTimer)clearTimeout(reconnectTimer);reconnectTimer=null;if(ws){const old=ws;ws=null;try{old.close()}catch{}}updateComposer()}
-function connectChat(){disconnectChat();manualClose=false;if(!token||!user||!streamer){updateComposer();return}clearMessages();sys('Opening Twitch chat connection…');$('chatState').textContent='Connecting';const socket=new WebSocket('wss://irc-ws.chat.twitch.tv:443');ws=socket;socket.onopen=()=>{if(ws!==socket)return;socket.send('CAP REQ :twitch.tv/tags twitch.tv/commands twitch.tv/membership');socket.send('PASS oauth:'+token);socket.send('NICK '+user.login.toLowerCase())};socket.onmessage=e=>{if(ws!==socket)return;for(const raw of String(e.data).split('\r\n')){if(!raw)continue;if(raw.startsWith('PING ')){socket.send('PONG '+raw.slice(5));continue}if(raw.includes('Login authentication failed')){status('Twitch rejected the chat token. Log out and sign in again.');sys('Twitch authentication failed.');disconnectChat();return}if(raw.includes(' 001 ')){socket.send('JOIN #'+streamer.login);status('Connected to #'+streamer.display);$('chatState').textContent='Connected';$('liveDot').classList.add('on');updateComposer();sys('Connected to #'+streamer.login+'. You can send messages below.');continue}if(raw.includes(' NOTICE ')){const m=raw.match(/ NOTICE [^ ]+ :(.*)$/);if(m&&/authentication|permission|verified email|suspended|banned|followers-only|subscribers-only/i.test(m[1]))sys(m[1])}if(raw.includes(' PRIVMSG #')){const match=raw.match(/^(?:@([^ ]+) )?:([^! ]+)!.* PRIVMSG #[^ ]+ :(.*)$/);if(match){const tags={};if(match[1])for(const item of match[1].split(';')){const i=item.indexOf('=');if(i>0)tags[item.slice(0,i)]=item.slice(i+1).replace(/\\s/g,' ').replace(/\\:/g,';').replace(/\\r/g,'\r').replace(/\\n/g,'\n')}addMessage(match[2],match[3],tags)}}}};socket.onerror=()=>{if(ws===socket)status('Twitch chat connection error. Check the network and chat permissions.')};socket.onclose=()=>{if(ws===socket){ws=null;$('liveDot').classList.remove('on');$('chatState').textContent='Disconnected';updateComposer();if(!manualClose&&token&&streamer){status('Chat disconnected. Retrying…');reconnectTimer=setTimeout(connectChat,5000)}}}}
-function addMessage(name,text,tags){const box=$('messages');if($('welcome'))$('welcome').remove();const el=document.createElement('div');el.className='msg';const n=document.createElement('span');n.className='name';n.style.color=tags.color||'#c9a0ff';n.textContent=name;const t=document.createElement('span');t.className='time';t.textContent=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});const body=document.createElement('span');body.className='body';body.textContent=' '+text;el.append(t,n,body);box.appendChild(el);while(box.children.length>500)box.removeChild(box.firstChild);box.scrollTop=box.scrollHeight;if(notifications&&name.toLowerCase()!==user?.login.toLowerCase()&&document.hidden&&'Notification'in window&&Notification.permission==='granted'){try{new Notification(streamer.display+' · '+name,{body:text.slice(0,180),tag:'gx-twitch-'+streamer.login})}catch{}}}
-const seenLocalEchoes=new Set();
-const chatBus=('BroadcastChannel'in window)?new BroadcastChannel('gx-twitch-chat-sync'):null;
-function showLocalEcho(data){
- if(!data||!data.id||seenLocalEchoes.has(data.id)||!streamer||data.channel!==streamer.login)return;
- seenLocalEchoes.add(data.id);if(seenLocalEchoes.size>300)seenLocalEchoes.delete(seenLocalEchoes.values().next().value);
- addMessage(data.sender||'You',data.text,{color:'#c9a0ff'});
-}
-if(chatBus)chatBus.onmessage=e=>showLocalEcho(e.data);
-window.addEventListener('storage',e=>{if(e.key==='gx_twitch_last_sent'&&e.newValue){try{showLocalEcho(JSON.parse(e.newValue))}catch{}}});
-$('sendForm').onsubmit=e=>{
- e.preventDefault();const text=$('messageInput').value.trim();
- if(!text||/[\r\n]/.test(text)||!ws||ws.readyState!==WebSocket.OPEN||!streamer||!user||!token)return;
- try{ws.send('PRIVMSG #'+streamer.login+' :'+text)}catch(err){status('Could not send message: '+err.message);return}
- const echo={id:(crypto.randomUUID?crypto.randomUUID():String(Date.now())+Math.random()),channel:streamer.login,sender:user.login,text,time:Date.now()};
- showLocalEcho(echo);if(chatBus)chatBus.postMessage(echo);try{localStorage.setItem('gx_twitch_last_sent',JSON.stringify(echo))}catch{}
- $('messageInput').value='';
-};
-$('notifyBtn').onclick=async()=>{if(!('Notification'in window)){status('This browser does not support desktop notifications.');return}if(!notifications){const p=await Notification.requestPermission();if(p!=='granted'){status('Notifications were not allowed by the browser.');return}notifications=true}else notifications=false;localStorage.setItem('gx_twitch_notifications',String(notifications));$('notifyBtn').classList.toggle('active',notifications);$('notifyLabel').textContent='Notifications '+(notifications?'ON':'OFF');status(notifications?'Notifications enabled for incoming messages while this page is open.':'Notifications disabled.')};
-$('notifyBtn').classList.toggle('active',notifications);$('notifyLabel').textContent='Notifications '+(notifications?'ON':'OFF');
-window.addEventListener('beforeunload',()=>{manualClose=true;if(ws)ws.close()});
-(async()=>{try{if(token&&clientId)await loadUser()}catch(e){token='';user=null;sessionStorage.removeItem('gx_twitch_token');status(e.message)}try{const saved=JSON.parse(localStorage.getItem('gx_twitch_streamer')||'null');if(saved&&saved.login){streamer=saved;$('channelName').textContent=saved.display+' · #'+saved.login}}catch{}renderAccount();if(user&&streamer)connectChat();else if(!clientId)status('Open ⚙ Settings and enter your Twitch Client ID.');if(localStorage.getItem(handoffKey))acceptHandoff(localStorage.getItem(handoffKey))})();
-})();
-</script>
-</body>
+        function status(s) {
+          $("status").textContent = s;
+        }
+        function sys(s) {
+          if ($("welcome")) $("welcome").remove();
+          const el = document.createElement("div");
+          el.className = "system";
+          el.textContent = s;
+          $("messages").appendChild(el);
+          $("messages").scrollTop = $("messages").scrollHeight;
+        }
+        function clearMessages() {
+          $("messages").replaceChildren();
+        }
+        function welcome() {
+          const w = document.createElement("div");
+          w.id = "welcome";
+          w.innerHTML =
+            '<div class="heart">♥</div><strong>Your Twitch chat, in GX</strong><span>Log in, choose a streamer, and chat here.</span>';
+          $("messages").appendChild(w);
+        }
+        function renderAccount() {
+          $("accountPill").textContent = user
+            ? "@" + user.login
+            : "Not logged in";
+          $("loginLabel").textContent = user ? "Log Out" : "Twitch Login";
+          $("loginBtn").classList.toggle("active", !!user);
+          updateComposer();
+        }
+        function updateComposer() {
+          const enabled = !!(
+            user &&
+            streamer &&
+            ws &&
+            ws.readyState === WebSocket.OPEN
+          );
+          $("messageInput").disabled = !enabled;
+          $("sendBtn").disabled = !enabled;
+          $("messageInput").placeholder = enabled
+            ? "Send a message as " + user.login + "…"
+            : !user
+              ? "Log in to Twitch first…"
+              : !streamer
+                ? "Pick a streamer first…"
+                : "Connecting to chat…";
+        }
+        async function api(path, options = {}) {
+          if (!clientId || !token) {
+            throw Error("Set your Client ID and log in first.");
+          }
+
+          const r = await fetch("https://api.twitch.tv/helix/" + path, {
+            ...options,
+            headers: {
+              "Client-ID": clientId,
+              Authorization: "Bearer " + token,
+              "Content-Type": "application/json",
+              ...(options.headers || {}),
+            },
+          });
+
+          const d = await r.json().catch(() => ({}));
+          if (!r.ok) {
+            throw Error(d.message || "Twitch API error " + r.status);
+          }
+
+          return d;
+        }
+        async function validateToken() {
+          const r = await fetch("https://id.twitch.tv/oauth2/validate", {
+            headers: { Authorization: "OAuth " + token },
+          });
+          if (!r.ok)
+            throw Error(
+              "Twitch login expired or invalid. Please log in again.",
+            );
+          const d = await r.json();
+          if (d.client_id !== clientId)
+            throw Error(
+              "This token belongs to a different Client ID. Log out and log in again.",
+            );
+          const scopes = d.scopes || [];
+          if (
+            !scopes.includes("chat:read") ||
+            !scopes.includes("user:write:chat")
+          ) {
+            throw Error(
+              "Missing chat:read or user:write:chat. Log out and sign in again to grant both scopes.",
+            );
+          }
+          return d;
+        }
+        async function loadUser() {
+          await validateToken();
+          const d = await api("users");
+          if (!d.data || !d.data.length)
+            throw Error("Could not retrieve your Twitch account.");
+          user = d.data[0];
+          renderAccount();
+          status("Logged in as " + user.display_name);
+        }
+        function openSettings() {
+          $("clientId").value = clientId;
+          $("settingsError").textContent = "";
+          $("settingsOverlay").classList.add("show");
+        }
+        function makeState() {
+          const bytes = crypto.getRandomValues(new Uint8Array(24));
+          return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join(
+            "",
+          );
+        }
+        function startLogin() {
+          if (!clientId) {
+            openSettings();
+            $("settingsError").textContent =
+              "Enter and save your Twitch Client ID first.";
+            return;
+          }
+          if (
+            location.protocol !== "https:" &&
+            location.hostname !== "localhost" &&
+            location.hostname !== "127.0.0.1"
+          ) {
+            alert(
+              "Open this app from its HTTPS GitHub Pages URL, not a local file or HTTP URL.",
+            );
+            return;
+          }
+          let state;
+          try {
+            state = makeState();
+          } catch (e) {
+            status(
+              "Secure random generation unavailable. Open the HTTPS GitHub Pages site.",
+            );
+            return;
+          }
+          localStorage.setItem(stateKey, state);
+          const u = new URL("https://id.twitch.tv/oauth2/authorize");
+          u.searchParams.set("client_id", clientId);
+          u.searchParams.set("redirect_uri", REDIRECT);
+          u.searchParams.set("response_type", "token");
+          u.searchParams.set("scope", "chat:read user:write:chat");
+          u.searchParams.set("state", state);
+          // Must be opened by a direct click so the browser does not block the new tab.
+          const tab = window.open(u.toString(), "_blank");
+          if (!tab) {
+            status(
+              "Pop-up blocked. Allow pop-ups for this GitHub Pages site and try again.",
+            );
+            return;
+          }
+          status(
+            "Twitch login opened in a new tab. Complete login there, then return here.",
+          );
+        }
+        function callbackPage(title, message) {
+          callbackScreen.classList.add("show");
+          $("callbackTitle").textContent = title;
+          $("callbackMessage").textContent = message;
+        }
+        function processOAuthCallback() {
+          const hash = new URLSearchParams(
+            location.hash.startsWith("#") ? location.hash.slice(1) : "",
+          );
+          const queryError = params.get("error");
+          if (queryError || hash.has("error")) {
+            const msg =
+              params.get("error_description") ||
+              hash.get("error_description") ||
+              queryError ||
+              hash.get("error");
+            history.replaceState(null, "", REDIRECT);
+            callbackPage(
+              "Twitch login failed",
+              msg || "Please return to the sidebar and try again.",
+            );
+            return;
+          }
+          if (!hash.has("access_token")) return;
+          const returned = hash.get("state");
+          const accessToken = hash.get("access_token");
+          // Remove the token from the visible address bar immediately.
+          history.replaceState(null, "", REDIRECT);
+          if (!returned || !accessToken) {
+            callbackPage(
+              "Login could not be verified",
+              "Twitch did not return the expected login details. Return to the sidebar and try again.",
+            );
+            return;
+          }
+          // The callback tab may have a different storage partition from the sidebar iframe.
+          // Send the result to the opener; the sidebar validates state and the token itself.
+          const payload = {
+            type: "gx-twitch-oauth",
+            token: accessToken,
+            state: returned,
+            time: Date.now(),
+          };
+          let sent = false;
+          try {
+            if (window.opener && !window.opener.closed) {
+              window.opener.postMessage(payload, location.origin);
+              sent = true;
+            }
+          } catch {}
+          // Fallback for browsers where same-origin localStorage is shared between contexts.
+          try {
+            localStorage.setItem(handoffKey, JSON.stringify(payload));
+          } catch {}
+          callbackPage(
+            "Twitch login complete",
+            sent
+              ? "Login result sent. Return to your Opera GX sidebar."
+              : "Return to your Opera GX sidebar. If it does not log in automatically, allow pop-ups and try again.",
+          );
+        }
+        let acceptingHandoff = false;
+        async function acceptHandoff(data) {
+          if (typeof data === "string") {
+            try {
+              data = JSON.parse(data);
+            } catch {
+              return;
+            }
+          }
+          if (acceptingHandoff) return;
+          if (
+            !data ||
+            !data.token ||
+            !data.state ||
+            data.state !== localStorage.getItem(stateKey) ||
+            !Number.isFinite(data.time) ||
+            Date.now() - data.time > 120000 ||
+            Date.now() < data.time
+          ) {
+            status(
+              "Login handoff could not be verified. Click Twitch Login and try again.",
+            );
+            return;
+          }
+          acceptingHandoff = true;
+          try {
+            localStorage.removeItem(handoffKey);
+            localStorage.removeItem(stateKey);
+          } catch {}
+          token = data.token;
+          sessionStorage.setItem("gx_twitch_token", token);
+          try {
+            await loadUser();
+            sys(
+              "Signed in as " +
+                user.display_name +
+                ". Choose a streamer to join chat.",
+            );
+            status("Logged in as " + user.display_name);
+          } catch (e) {
+            token = "";
+            user = null;
+            sessionStorage.removeItem("gx_twitch_token");
+            renderAccount();
+            status("Login failed: " + e.message);
+          } finally {
+            acceptingHandoff = false;
+          }
+        }
+        if (isOAuthCallback) {
+          processOAuthCallback();
+          return;
+        }
+        window.addEventListener("message", (e) => {
+          if (
+            e.origin !== location.origin ||
+            !e.data ||
+            e.data.type !== "gx-twitch-oauth"
+          )
+            return;
+          acceptHandoff(e.data);
+        });
+        window.addEventListener("storage", (e) => {
+          if (e.key === handoffKey && e.newValue) acceptHandoff(e.newValue);
+        });
+        // Some browsers delay storage events; check for a pending handoff when the page resumes.
+        window.addEventListener("focus", () => {
+          try {
+            const pending = localStorage.getItem(handoffKey);
+            if (pending) acceptHandoff(pending);
+          } catch {}
+        });
+        $("settingsBtn").onclick = openSettings;
+        $("closeSettings").onclick = () =>
+          $("settingsOverlay").classList.remove("show");
+        $("saveSettings").onclick = () => {
+          const v = $("clientId").value.trim();
+          if (!/^[a-zA-Z0-9]+$/.test(v)) {
+            $("settingsError").textContent =
+              "Enter the Client ID shown in your Twitch Developer Console.";
+            return;
+          }
+          if (v !== clientId) {
+            disconnectChat();
+            token = "";
+            user = null;
+            sessionStorage.removeItem("gx_twitch_token");
+            localStorage.removeItem(handoffKey);
+            localStorage.removeItem(stateKey);
+          }
+          clientId = v;
+          localStorage.setItem(clientIdKey, v);
+          $("settingsOverlay").classList.remove("show");
+          renderAccount();
+          status("Client ID saved. Click Twitch Login to authorize.");
+        };
+        $("logoutBtn").onclick = () => {
+          disconnectChat();
+          token = "";
+          user = null;
+          streamer = null;
+          sessionStorage.removeItem("gx_twitch_token");
+          localStorage.removeItem("gx_twitch_streamer");
+          localStorage.removeItem(handoffKey);
+          localStorage.removeItem(stateKey);
+          renderAccount();
+          $("channelName").textContent = "No streamer selected";
+          $("liveDot").classList.remove("on");
+          $("chatState").textContent = "Idle";
+          clearMessages();
+          welcome();
+          $("settingsOverlay").classList.remove("show");
+          status("Logged out.");
+        };
+        $("loginBtn").onclick = () => {
+          if (user && token) {
+            if (confirm("Log out of Twitch?")) $("logoutBtn").click();
+          } else startLogin();
+        };
+        $("pickBtn").onclick = () => {
+          if (!user) {
+            status("Log in to Twitch before searching for streamers.");
+            openSettings();
+            return;
+          }
+          $("pickerOverlay").classList.add("show");
+          $("searchInput").focus();
+        };
+        $("closePicker").onclick = () =>
+          $("pickerOverlay").classList.remove("show");
+        $("searchForm").onsubmit = async (e) => {
+          e.preventDefault();
+          const q = $("searchInput").value.trim();
+          if (!q) return;
+          $("results").replaceChildren();
+          $("searchError").textContent = "Searching…";
+          try {
+            const d = await api(
+              "search/channels?query=" + encodeURIComponent(q) + "&first=20",
+            );
+            $("searchError").textContent = d.data.length
+              ? d.data.length + " result(s)"
+              : "No channels found.";
+            for (const c of d.data) {
+              const b = document.createElement("button");
+              b.type = "button";
+              b.className = "result";
+              const left = document.createElement("span"),
+                bold = document.createElement("b"),
+                small = document.createElement("small"),
+                right = document.createElement("span");
+              bold.textContent = c.display_name;
+              small.textContent =
+                "@" +
+                c.broadcaster_login +
+                " · " +
+                (c.game_name || "No category");
+              left.append(bold, small);
+              right.textContent = c.is_live ? "🔴 LIVE" : "Select →";
+              b.append(left, right);
+              b.onclick = () =>
+                selectStreamer(c.broadcaster_login, c.display_name, c.id);
+              $("results").appendChild(b);
+            }
+          } catch (err) {
+            $("searchError").textContent = err.message;
+          }
+        };
+        function selectStreamer(login, display, id) {
+          streamer = { login: login.toLowerCase(), display, id };
+          localStorage.setItem("gx_twitch_streamer", JSON.stringify(streamer));
+          $("pickerOverlay").classList.remove("show");
+          $("channelName").textContent = display + " · #" + streamer.login;
+          $("liveDot").classList.remove("on");
+          $("chatState").textContent = "Connecting";
+          clearMessages();
+          sys("Connecting to #" + streamer.login + "…");
+          connectChat();
+        }
+        function disconnectChat() {
+          manualClose = true;
+          if (reconnectTimer) clearTimeout(reconnectTimer);
+          reconnectTimer = null;
+          if (ws) {
+            const old = ws;
+            ws = null;
+            try {
+              old.close();
+            } catch {}
+          }
+          updateComposer();
+        }
+        function connectChat() {
+          disconnectChat();
+          manualClose = false;
+          if (!token || !user || !streamer) {
+            updateComposer();
+            return;
+          }
+          clearMessages();
+          sys("Opening Twitch chat connection…");
+          $("chatState").textContent = "Connecting";
+          const socket = new WebSocket("wss://irc-ws.chat.twitch.tv:443");
+          ws = socket;
+          socket.onopen = () => {
+            if (ws !== socket) return;
+            socket.send(
+              "CAP REQ :twitch.tv/tags twitch.tv/commands twitch.tv/membership",
+            );
+            socket.send("PASS oauth:" + token);
+            socket.send("NICK " + user.login.toLowerCase());
+          };
+          socket.onmessage = (e) => {
+            if (ws !== socket) return;
+            for (const raw of String(e.data).split("\r\n")) {
+              if (!raw) continue;
+              if (raw.startsWith("PING ")) {
+                socket.send("PONG " + raw.slice(5));
+                continue;
+              }
+              if (raw.includes("Login authentication failed")) {
+                status(
+                  "Twitch rejected the chat token. Log out and sign in again.",
+                );
+                sys("Twitch authentication failed.");
+                disconnectChat();
+                return;
+              }
+              if (raw.includes(" 001 ")) {
+                socket.send("JOIN #" + streamer.login);
+                status("Connected to #" + streamer.display);
+                $("chatState").textContent = "Connected";
+                $("liveDot").classList.add("on");
+                updateComposer();
+                sys(
+                  "Connected to #" +
+                    streamer.login +
+                    ". You can send messages below.",
+                );
+                continue;
+              }
+              if (raw.includes(" NOTICE ")) {
+                const m = raw.match(/ NOTICE [^ ]+ :(.*)$/);
+                if (
+                  m &&
+                  /authentication|permission|verified email|suspended|banned|followers-only|subscribers-only/i.test(
+                    m[1],
+                  )
+                )
+                  sys(m[1]);
+              }
+              if (raw.includes(" PRIVMSG #")) {
+                const match = raw.match(
+                  /^(?:@([^ ]+) )?:([^! ]+)!.* PRIVMSG #[^ ]+ :(.*)$/,
+                );
+                if (match) {
+                  const tags = {};
+                  if (match[1])
+                    for (const item of match[1].split(";")) {
+                      const i = item.indexOf("=");
+                      if (i > 0)
+                        tags[item.slice(0, i)] = item
+                          .slice(i + 1)
+                          .replace(/\\s/g, " ")
+                          .replace(/\\:/g, ";")
+                          .replace(/\\r/g, "\r")
+                          .replace(/\\n/g, "\n");
+                    }
+                  addMessage(match[2], match[3], tags);
+                }
+              }
+            }
+          };
+          socket.onerror = () => {
+            if (ws === socket)
+              status(
+                "Twitch chat connection error. Check the network and chat permissions.",
+              );
+          };
+          socket.onclose = () => {
+            if (ws === socket) {
+              ws = null;
+              $("liveDot").classList.remove("on");
+              $("chatState").textContent = "Disconnected";
+              updateComposer();
+              if (!manualClose && token && streamer) {
+                status("Chat disconnected. Retrying…");
+                reconnectTimer = setTimeout(connectChat, 5000);
+              }
+            }
+          };
+        }
+        function addMessage(name, text, tags) {
+          const box = $("messages");
+          if ($("welcome")) $("welcome").remove();
+          const el = document.createElement("div");
+          el.className = "msg";
+          const n = document.createElement("span");
+          n.className = "name";
+          n.style.color = tags.color || "#c9a0ff";
+          n.textContent = name;
+          const t = document.createElement("span");
+          t.className = "time";
+          t.textContent = new Date().toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+          const body = document.createElement("span");
+          body.className = "body";
+          body.textContent = " " + text;
+          el.append(t, n, body);
+          box.appendChild(el);
+          while (box.children.length > 500) box.removeChild(box.firstChild);
+          box.scrollTop = box.scrollHeight;
+          if (
+            notifications &&
+            name.toLowerCase() !== user?.login.toLowerCase() &&
+            document.hidden &&
+            "Notification" in window &&
+            Notification.permission === "granted"
+          ) {
+            try {
+              new Notification(streamer.display + " · " + name, {
+                body: text.slice(0, 180),
+                tag: "gx-twitch-" + streamer.login,
+              });
+            } catch {}
+          }
+        }
+        const seenLocalEchoes = new Set();
+        const chatBus =
+          "BroadcastChannel" in window
+            ? new BroadcastChannel("gx-twitch-chat-sync")
+            : null;
+        function showLocalEcho(data) {
+          if (
+            !data ||
+            !data.id ||
+            seenLocalEchoes.has(data.id) ||
+            !streamer ||
+            data.channel !== streamer.login
+          )
+            return;
+          seenLocalEchoes.add(data.id);
+          if (seenLocalEchoes.size > 300)
+            seenLocalEchoes.delete(seenLocalEchoes.values().next().value);
+          addMessage(data.sender || "You", data.text, { color: "#c9a0ff" });
+        }
+        if (chatBus) chatBus.onmessage = (e) => showLocalEcho(e.data);
+        window.addEventListener("storage", (e) => {
+          if (e.key === "gx_twitch_last_sent" && e.newValue) {
+            try {
+              showLocalEcho(JSON.parse(e.newValue));
+            } catch {}
+          }
+        });
+        $("sendForm").onsubmit = async (e) => {
+          e.preventDefault();
+
+          const input = $("messageInput");
+          const text = input.value.trim();
+
+          if (
+            !text ||
+            /[\r\n]/.test(text) ||
+            !ws ||
+            ws.readyState !== WebSocket.OPEN ||
+            !streamer ||
+            !user ||
+            !token
+          ) {
+            return;
+          }
+
+          $("sendBtn").disabled = true;
+
+          try {
+            // Older saved streamer entries may not have an ID.
+            if (!streamer.id) {
+              const result = await api(
+                "users?login=" + encodeURIComponent(streamer.login),
+              );
+              streamer.id = result.data?.[0]?.id;
+
+              if (!streamer.id) {
+                throw Error("Could not find the selected Twitch channel.");
+              }
+
+              localStorage.setItem("gx_twitch_streamer", JSON.stringify(streamer));
+            }
+
+            const result = await api("chat/messages", {
+              method: "POST",
+              body: JSON.stringify({
+                broadcaster_id: streamer.id,
+                sender_id: user.id,
+                message: text,
+              }),
+            });
+
+            const sent = result.data?.[0];
+            if (!sent?.is_sent) {
+              throw Error(sent?.drop_reason?.message || "Twitch did not send the message.");
+            }
+
+            const echo = {
+              id: crypto.randomUUID
+                ? crypto.randomUUID()
+                : String(Date.now()) + Math.random(),
+              channel: streamer.login,
+              sender: user.login,
+              text,
+              time: Date.now(),
+            };
+
+            showLocalEcho(echo);
+            if (chatBus) chatBus.postMessage(echo);
+
+            try {
+              localStorage.setItem("gx_twitch_last_sent", JSON.stringify(echo));
+            } catch {}
+
+            input.value = "";
+          } catch (err) {
+            status("Could not send message: " + err.message);
+          } finally {
+            updateComposer();
+          }
+        };
+        $("notifyBtn").onclick = async () => {
+          if (!("Notification" in window)) {
+            status("This browser does not support desktop notifications.");
+            return;
+          }
+          if (!notifications) {
+            const p = await Notification.requestPermission();
+            if (p !== "granted") {
+              status("Notifications were not allowed by the browser.");
+              return;
+            }
+            notifications = true;
+          } else notifications = false;
+          localStorage.setItem(
+            "gx_twitch_notifications",
+            String(notifications),
+          );
+          $("notifyBtn").classList.toggle("active", notifications);
+          $("notifyLabel").textContent =
+            "Notifications " + (notifications ? "ON" : "OFF");
+          status(
+            notifications
+              ? "Notifications enabled for incoming messages while this page is open."
+              : "Notifications disabled.",
+          );
+        };
+        $("notifyBtn").classList.toggle("active", notifications);
+        $("notifyLabel").textContent =
+          "Notifications " + (notifications ? "ON" : "OFF");
+        window.addEventListener("beforeunload", () => {
+          manualClose = true;
+          if (ws) ws.close();
+        });
+        (async () => {
+          try {
+            if (token && clientId) await loadUser();
+          } catch (e) {
+            token = "";
+            user = null;
+            sessionStorage.removeItem("gx_twitch_token");
+            status(e.message);
+          }
+          try {
+            const saved = JSON.parse(
+              localStorage.getItem("gx_twitch_streamer") || "null",
+            );
+            if (saved && saved.login) {
+              streamer = saved;
+              $("channelName").textContent =
+                saved.display + " · #" + saved.login;
+            }
+          } catch {}
+          renderAccount();
+          if (user && streamer) connectChat();
+          else if (!clientId)
+            status("Open ⚙ Settings and enter your Twitch Client ID.");
+          if (localStorage.getItem(handoffKey))
+            acceptHandoff(localStorage.getItem(handoffKey));
+        })();
+      })();
+    </script>
+  </body>
 </html>
