@@ -1009,7 +1009,14 @@
             }
           };
         }
-        function addMessage(name, text, tags) {
+        const seenMessageIds = new Set();
+        function addMessage(name, text, tags, messageId = tags.id) {
+          if (messageId && seenMessageIds.has(messageId)) return;
+          if (messageId) {
+            seenMessageIds.add(messageId);
+            if (seenMessageIds.size > 1000)
+              seenMessageIds.delete(seenMessageIds.values().next().value);
+          }
           const box = $("messages");
           if ($("welcome")) $("welcome").remove();
           const el = document.createElement("div");
@@ -1064,7 +1071,12 @@
           seenLocalEchoes.add(data.id);
           if (seenLocalEchoes.size > 300)
             seenLocalEchoes.delete(seenLocalEchoes.values().next().value);
-          addMessage(data.sender || "You", data.text, { color: "#c9a0ff" });
+          addMessage(
+            data.sender || "You",
+            data.text,
+            { color: "#c9a0ff" },
+            data.messageId,
+          );
         }
         if (chatBus) chatBus.onmessage = (e) => showLocalEcho(e.data);
         function isOwnMessage(name) {
@@ -1128,9 +1140,10 @@
             }
 
             const echo = {
-              id: crypto.randomUUID
+              id: sent.message_id || (crypto.randomUUID
                 ? crypto.randomUUID()
-                : String(Date.now()) + Math.random(),
+                : String(Date.now()) + Math.random()),
+              messageId: sent.message_id || null,
               channel: streamer.login,
               sender: user.login,
               text,
