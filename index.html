@@ -984,8 +984,8 @@
                           .replace(/\\r/g, "\r")
                           .replace(/\\n/g, "\n");
                     }
-                  if (!consumeOwnEcho(match[2], match[3]))
-                    addMessage(match[2], match[3], tags);
+                  // Successful sends are rendered locally; skip this account's IRC copy.
+                  if (!isOwnMessage(match[2])) addMessage(match[2], match[3], tags);
                 }
               }
             }
@@ -1047,7 +1047,6 @@
           }
         }
         const seenLocalEchoes = new Set();
-        const pendingOwnEchoes = [];
         let sendingMessage = false;
         const chatBus =
           "BroadcastChannel" in window
@@ -1068,22 +1067,8 @@
           addMessage(data.sender || "You", data.text, { color: "#c9a0ff" });
         }
         if (chatBus) chatBus.onmessage = (e) => showLocalEcho(e.data);
-        function consumeOwnEcho(name, text) {
-          if (!user || name.toLowerCase() !== user.login.toLowerCase())
-            return false;
-          const now = Date.now();
-          while (
-            pendingOwnEchoes.length &&
-            now - pendingOwnEchoes[0].time > 15000
-          ) {
-            pendingOwnEchoes.shift();
-          }
-          const pending = pendingOwnEchoes.find(
-            (item) => !item.received && item.text === text,
-          );
-          if (!pending) return false;
-          pending.received = true;
-          return true;
+        function isOwnMessage(name) {
+          return !!user && name.toLowerCase() === user.login.toLowerCase();
         }
         window.addEventListener("storage", (e) => {
           if (e.key === "gx_twitch_last_sent" && e.newValue) {
@@ -1113,8 +1098,6 @@
 
           sendingMessage = true;
           $("sendBtn").disabled = true;
-          let pendingEcho = null;
-
           try {
             // Older saved streamer entries may not have an ID.
             if (!streamer.id) {
@@ -1130,8 +1113,6 @@
               localStorage.setItem("gx_twitch_streamer", JSON.stringify(streamer));
             }
 
-            pendingEcho = { text, time: Date.now(), received: false };
-            pendingOwnEchoes.push(pendingEcho);
             const result = await api("chat/messages", {
               method: "POST",
               body: JSON.stringify({
@@ -1156,7 +1137,7 @@
               time: Date.now(),
             };
 
-            if (!pendingEcho.received) showLocalEcho(echo);
+            showLocalEcho(echo);
             if (chatBus) chatBus.postMessage(echo);
 
             try {
@@ -1165,10 +1146,6 @@
 
             input.value = "";
           } catch (err) {
-            if (pendingEcho) {
-              const index = pendingOwnEchoes.indexOf(pendingEcho);
-              if (index !== -1) pendingOwnEchoes.splice(index, 1);
-            }
             status("Could not send message: " + err.message);
           } finally {
             sendingMessage = false;
