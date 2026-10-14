@@ -1010,8 +1010,21 @@
           };
         }
         const seenMessageIds = new Set();
+        const recentOwnMessages = new Map();
         function addMessage(name, text, tags, messageId = tags.id) {
           if (messageId && seenMessageIds.has(messageId)) return;
+          const now = Date.now();
+          if (user && name.toLowerCase() === user.login.toLowerCase()) {
+            const key = user.login.toLowerCase() + "\n" + text;
+            const previous = recentOwnMessages.get(key);
+            if (previous && now - previous < 15000) return;
+            recentOwnMessages.set(key, now);
+            for (const [oldKey, time] of recentOwnMessages) {
+              if (now - time > 15000) recentOwnMessages.delete(oldKey);
+            }
+            if (recentOwnMessages.size > 200)
+              recentOwnMessages.delete(recentOwnMessages.keys().next().value);
+          }
           if (messageId) {
             seenMessageIds.add(messageId);
             if (seenMessageIds.size > 1000)
