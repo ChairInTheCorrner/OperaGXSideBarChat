@@ -62,7 +62,6 @@ function startLogin(){
  // Must be opened by a direct click so the browser does not block the new tab.
  const tab=window.open(u.toString(),'_blank');
  if(!tab){status('Pop-up blocked. Allow pop-ups for this GitHub Pages site and try again.');return}
- try{tab.opener=null}catch{}
  status('Twitch login opened in a new tab. Complete login there, then return here.');
 }
 function callbackPage(title,message){callbackScreen.classList.add('show');$('callbackTitle').textContent=title;$('callbackMessage').textContent=message}
@@ -74,27 +73,39 @@ function processOAuthCallback(){
   history.replaceState(null,'',REDIRECT);callbackPage('Twitch login failed',msg||'Please return to the sidebar and try again.');return;
  }
  if(!hash.has('access_token'))return;
- const expected=localStorage.getItem(stateKey),returned=hash.get('state');
- const returnedClient=clientId;
- // Remove access token from address bar immediately.
+ const returned=hash.get('state');
+ const accessToken=hash.get('access_token');
+ // Remove the token from the visible address bar immediately.
  history.replaceState(null,'',REDIRECT);
- if(!expected||!returned||returned!==expected){callbackPage('Login could not be verified','OAuth state did not match. Return to the sidebar and try again.');return}
- const payload={token:hash.get('access_token'),clientId:returnedClient,state:expected,time:Date.now()};
- localStorage.setItem(handoffKey,JSON.stringify(payload));
- // Keep the expected state until the sidebar consumes the one-time handoff.
- callbackPage('Twitch login complete','Return to your Opera GX sidebar. You can close this tab.');
+ if(!returned||!accessToken){callbackPage('Login could not be verified','Twitch did not return the expected login details. Return to the sidebar and try again.');return}
+ // The callback tab may have a different storage partition from the sidebar iframe.
+ // Send the result to the opener; the sidebar validates state and the token itself.
+ const payload={type:'gx-twitch-oauth',token:accessToken,state:returned,time:Date.now()};
+ let sent=false;
+ try{if(window.opener&&!window.opener.closed){window.opener.postMessage(payload,location.origin);sent=true}}catch{}
+ // Fallback for browsers where same-origin localStorage is shared between contexts.
+ try{localStorage.setItem(handoffKey,JSON.stringify(payload))}catch{}
+ callbackPage('Twitch login complete',sent?'Login result sent. Return to your Opera GX sidebar.':'Return to your Opera GX sidebar. If it does not log in automatically, allow pop-ups and try again.');
 }
-function acceptHandoff(raw){
- let data;try{data=JSON.parse(raw)}catch{return}
- if(!data||!data.token||data.clientId!==clientId||data.state!==localStorage.getItem(stateKey)||Date.now()-data.time>120000){
-  status('Login handoff expired or invalid. Click Twitch Login and try again.');return;
+let acceptingHandoff=false;
+async function acceptHandoff(data){
+ if(typeof data==='string'){try{data=JSON.parse(data)}catch{return}}
+ if(acceptingHandoff)return;
+ if(!data||!data.token||!data.state||data.state!==localStorage.getItem(stateKey)||!Number.isFinite(data.time)||Date.now()-data.time>120000||Date.now()<data.time){
+  status('Login handoff could not be verified. Click Twitch Login and try again.');return;
  }
- localStorage.removeItem(handoffKey);localStorage.removeItem(stateKey);
+ acceptingHandoff=true;
+ try{localStorage.removeItem(handoffKey);localStorage.removeItem(stateKey)}catch{}
  token=data.token;sessionStorage.setItem('gx_twitch_token',token);
- (async()=>{try{await loadUser();sys('Signed in as '+user.display_name+'. Choose a streamer to join chat.')}catch(e){token='';user=null;sessionStorage.removeItem('gx_twitch_token');renderAccount();status(e.message)}})();
+ try{await loadUser();sys('Signed in as '+user.display_name+'. Choose a streamer to join chat.');status('Logged in as '+user.display_name)}
+ catch(e){token='';user=null;sessionStorage.removeItem('gx_twitch_token');renderAccount();status('Login failed: '+e.message)}
+ finally{acceptingHandoff=false}
 }
 if(isOAuthCallback){processOAuthCallback();return}
+window.addEventListener('message',e=>{if(e.origin!==location.origin||!e.data||e.data.type!=='gx-twitch-oauth')return;acceptHandoff(e.data)});
 window.addEventListener('storage',e=>{if(e.key===handoffKey&&e.newValue)acceptHandoff(e.newValue)});
+// Some browsers delay storage events; check for a pending handoff when the page resumes.
+window.addEventListener('focus',()=>{try{const pending=localStorage.getItem(handoffKey);if(pending)acceptHandoff(pending)}catch{}});
 $('settingsBtn').onclick=openSettings;$('closeSettings').onclick=()=>$('settingsOverlay').classList.remove('show');
 $('saveSettings').onclick=()=>{const v=$('clientId').value.trim();if(!/^[a-zA-Z0-9]+$/.test(v)){$('settingsError').textContent='Enter the Client ID shown in your Twitch Developer Console.';return}if(v!==clientId){disconnectChat();token='';user=null;sessionStorage.removeItem('gx_twitch_token');localStorage.removeItem(handoffKey);localStorage.removeItem(stateKey)}clientId=v;localStorage.setItem(clientIdKey,v);$('settingsOverlay').classList.remove('show');renderAccount();status('Client ID saved. Click Twitch Login to authorize.')};
 $('logoutBtn').onclick=()=>{disconnectChat();token='';user=null;streamer=null;sessionStorage.removeItem('gx_twitch_token');localStorage.removeItem('gx_twitch_streamer');localStorage.removeItem(handoffKey);localStorage.removeItem(stateKey);renderAccount();$('channelName').textContent='No streamer selected';$('liveDot').classList.remove('on');$('chatState').textContent='Idle';clearMessages();welcome();$('settingsOverlay').classList.remove('show');status('Logged out.')};
@@ -106,7 +117,23 @@ function selectStreamer(login,display){streamer={login:login.toLowerCase(),displ
 function disconnectChat(){manualClose=true;if(reconnectTimer)clearTimeout(reconnectTimer);reconnectTimer=null;if(ws){const old=ws;ws=null;try{old.close()}catch{}}updateComposer()}
 function connectChat(){disconnectChat();manualClose=false;if(!token||!user||!streamer){updateComposer();return}clearMessages();sys('Opening Twitch chat connection…');$('chatState').textContent='Connecting';const socket=new WebSocket('wss://irc-ws.chat.twitch.tv:443');ws=socket;socket.onopen=()=>{if(ws!==socket)return;socket.send('CAP REQ :twitch.tv/tags twitch.tv/commands twitch.tv/membership');socket.send('PASS oauth:'+token);socket.send('NICK '+user.login.toLowerCase())};socket.onmessage=e=>{if(ws!==socket)return;for(const raw of String(e.data).split('\r\n')){if(!raw)continue;if(raw.startsWith('PING ')){socket.send('PONG '+raw.slice(5));continue}if(raw.includes('Login authentication failed')){status('Twitch rejected the chat token. Log out and sign in again.');sys('Twitch authentication failed.');disconnectChat();return}if(raw.includes(' 001 ')){socket.send('JOIN #'+streamer.login);status('Connected to #'+streamer.display);$('chatState').textContent='Connected';$('liveDot').classList.add('on');updateComposer();sys('Connected to #'+streamer.login+'. You can send messages below.');continue}if(raw.includes(' NOTICE ')){const m=raw.match(/ NOTICE [^ ]+ :(.*)$/);if(m&&/authentication|permission|verified email|suspended|banned|followers-only|subscribers-only/i.test(m[1]))sys(m[1])}if(raw.includes(' PRIVMSG #')){const match=raw.match(/^(?:@([^ ]+) )?:([^! ]+)!.* PRIVMSG #[^ ]+ :(.*)$/);if(match){const tags={};if(match[1])for(const item of match[1].split(';')){const i=item.indexOf('=');if(i>0)tags[item.slice(0,i)]=item.slice(i+1).replace(/\\s/g,' ').replace(/\\:/g,';').replace(/\\r/g,'\r').replace(/\\n/g,'\n')}addMessage(match[2],match[3],tags)}}}};socket.onerror=()=>{if(ws===socket)status('Twitch chat connection error. Check the network and chat permissions.')};socket.onclose=()=>{if(ws===socket){ws=null;$('liveDot').classList.remove('on');$('chatState').textContent='Disconnected';updateComposer();if(!manualClose&&token&&streamer){status('Chat disconnected. Retrying…');reconnectTimer=setTimeout(connectChat,5000)}}}}
 function addMessage(name,text,tags){const box=$('messages');if($('welcome'))$('welcome').remove();const el=document.createElement('div');el.className='msg';const n=document.createElement('span');n.className='name';n.style.color=tags.color||'#c9a0ff';n.textContent=name;const t=document.createElement('span');t.className='time';t.textContent=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});const body=document.createElement('span');body.className='body';body.textContent=' '+text;el.append(t,n,body);box.appendChild(el);while(box.children.length>500)box.removeChild(box.firstChild);box.scrollTop=box.scrollHeight;if(notifications&&name.toLowerCase()!==user?.login.toLowerCase()&&document.hidden&&'Notification'in window&&Notification.permission==='granted'){try{new Notification(streamer.display+' · '+name,{body:text.slice(0,180),tag:'gx-twitch-'+streamer.login})}catch{}}}
-$('sendForm').onsubmit=e=>{e.preventDefault();const text=$('messageInput').value.trim();if(!text||/[\r\n]/.test(text)||!ws||ws.readyState!==WebSocket.OPEN||!streamer||!user||!token)return;ws.send('PRIVMSG #'+streamer.login+' :'+text);$('messageInput').value=''};
+const seenLocalEchoes=new Set();
+const chatBus=('BroadcastChannel'in window)?new BroadcastChannel('gx-twitch-chat-sync'):null;
+function showLocalEcho(data){
+ if(!data||!data.id||seenLocalEchoes.has(data.id)||!streamer||data.channel!==streamer.login)return;
+ seenLocalEchoes.add(data.id);if(seenLocalEchoes.size>300)seenLocalEchoes.delete(seenLocalEchoes.values().next().value);
+ addMessage(data.sender||'You',data.text,{color:'#c9a0ff'});
+}
+if(chatBus)chatBus.onmessage=e=>showLocalEcho(e.data);
+window.addEventListener('storage',e=>{if(e.key==='gx_twitch_last_sent'&&e.newValue){try{showLocalEcho(JSON.parse(e.newValue))}catch{}}});
+$('sendForm').onsubmit=e=>{
+ e.preventDefault();const text=$('messageInput').value.trim();
+ if(!text||/[\r\n]/.test(text)||!ws||ws.readyState!==WebSocket.OPEN||!streamer||!user||!token)return;
+ try{ws.send('PRIVMSG #'+streamer.login+' :'+text)}catch(err){status('Could not send message: '+err.message);return}
+ const echo={id:(crypto.randomUUID?crypto.randomUUID():String(Date.now())+Math.random()),channel:streamer.login,sender:user.login,text,time:Date.now()};
+ showLocalEcho(echo);if(chatBus)chatBus.postMessage(echo);try{localStorage.setItem('gx_twitch_last_sent',JSON.stringify(echo))}catch{}
+ $('messageInput').value='';
+};
 $('notifyBtn').onclick=async()=>{if(!('Notification'in window)){status('This browser does not support desktop notifications.');return}if(!notifications){const p=await Notification.requestPermission();if(p!=='granted'){status('Notifications were not allowed by the browser.');return}notifications=true}else notifications=false;localStorage.setItem('gx_twitch_notifications',String(notifications));$('notifyBtn').classList.toggle('active',notifications);$('notifyLabel').textContent='Notifications '+(notifications?'ON':'OFF');status(notifications?'Notifications enabled for incoming messages while this page is open.':'Notifications disabled.')};
 $('notifyBtn').classList.toggle('active',notifications);$('notifyLabel').textContent='Notifications '+(notifications?'ON':'OFF');
 window.addEventListener('beforeunload',()=>{manualClose=true;if(ws)ws.close()});
